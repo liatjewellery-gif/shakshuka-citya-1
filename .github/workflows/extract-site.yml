@@ -1,0 +1,54 @@
+name: Extract Shakshuka City site
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/extract-site.yml'
+      - 'shakshuka-city-site.zip'
+      - 'shakshuka-city-merged-update.zip'
+      - 'shakshuka-city-site 2.zip'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract website files to repo root
+        run: |
+          python3 - <<'PY'
+          import zipfile, pathlib
+          with zipfile.ZipFile(next((f for f in ['shakshuka-city-merged-update.zip','shakshuka-city-site 2.zip','shakshuka-city-site.zip'] if pathlib.Path(f).exists()))) as z:
+              for item in z.infolist():
+                  p=pathlib.PurePosixPath(item.filename)
+                  if item.is_dir():
+                      continue
+                  relative=pathlib.Path(*(p.parts[1:] if p.parts[0]=='shakshuka-city' else p.parts))
+                  if '..' in relative.parts or not relative.parts:
+                      continue
+                  dest=pathlib.Path(relative)
+                  dest.parent.mkdir(parents=True,exist_ok=True)
+                  dest.write_bytes(z.read(item))
+          PY
+      - name: Reconnect cloud saving and disable visitor house creation
+        run: |
+          python3 scripts/enable-cloud.py
+          python3 scripts/fix-welcome.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          s=s.replace('function maybeWelcome(){','function maybeWelcome(){return;')
+          s=s.replace('function showWelcome(){','function showWelcome(){return;')
+          p.write_text(s)
+          PY
+      - name: Commit extracted site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html vercel.json vendor README.md
+          if ! git diff --cached --quiet; then
+            git commit -m "Add Shakshuka City site files"
+            git push
+          fi
