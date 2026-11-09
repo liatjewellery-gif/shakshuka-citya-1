@@ -124,6 +124,7 @@ body.film .pad,body.film .top .note,body.film .bar,body.film .sheet,body.film .w
   <button class="btn primary" id="addRes" type="button" hidden>הוסף תושב</button>
   <button class="btn primary" id="myHouse" type="button" hidden>הבית שלי</button>
   <button class="btn" id="openList" type="button">תושבים</button>
+  <button class="btn" id="schoolBtn" type="button">בית הספר 🥚</button>
   <button class="btn" id="film" type="button">מצב צילום</button>
 </div>
 
@@ -184,6 +185,7 @@ body.film .pad,body.film .top .note,body.film .bar,body.film .sheet,body.film .w
 <div class="filmhint" id="filmhint" hidden>לחיצה על המסך יוצאת ממצב צילום</div>
 
 <script src="vendor/three.min.js"></script>
+<script src="school.js"></script>
 <script>
 (function(){
 const P=18, BLOCK=14, G=5, RIVER_Z=(G+1)*P, RIVER_W=16;
@@ -462,36 +464,9 @@ function drawBoard(line2,big,small){
   else{x.fillStyle='#d63b22';x.font='800 190px Rubik, Assistant, sans-serif';x.direction='rtl';x.fillText(big,W/2,410)}
   cdTex.needsUpdate=true;
 }
-// Beitzi's School: construction site
-{
-  const g=new THREE.Group();g.position.copy(SCHOOL);
-  const dirt=new THREE.Mesh(new THREE.BoxGeometry(30,.3,26),M(0xc9a46b));dirt.position.y=.15;dirt.receiveShadow=true;g.add(dirt);
-  // half-built egg-shaped building
-  const shellMat=new THREE.MeshStandardMaterial({color:0xfff4dc,roughness:.6,side:THREE.DoubleSide});
-  const egg=new THREE.Mesh(new THREE.SphereGeometry(7,40,20,0,Math.PI*1.55,Math.PI*.42,Math.PI*.58),shellMat);egg.scale.set(1,1.35,1);egg.position.y=5.6;egg.rotation.y=-1.2;egg.castShadow=true;g.add(egg);
-  const floor=new THREE.Mesh(new THREE.CylinderGeometry(6.6,6.6,.4,40),M(0xd8cdb6));floor.position.y=.5;g.add(floor);
-  for(let k=0;k<6;k++){const a=k/6*Math.PI*1.5-.9;const w=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.4,.2),new THREE.MeshStandardMaterial({color:0x8fd3ff,emissive:0x2a6a9a,emissiveIntensity:.2}));w.position.set(Math.sin(a)*7.05,5,Math.cos(a)*7.05);w.rotation.y=a;g.add(w)}
-  // scaffolding
-  const pipe=M(0xb0b4bb),plank=M(0xa4663a);
-  for(let k=0;k<10;k++){const a=k/10*Math.PI*1.6-1.1,x=Math.sin(a)*8.6,z=Math.cos(a)*8.6;
-    const v=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,11,6),pipe);v.position.set(x,5.6,z);g.add(v);
-    [3.2,6.4,9.6].forEach(y=>{const pl=new THREE.Mesh(new THREE.BoxGeometry(1.8,.12,.7),plank);pl.position.set(x,y,z);pl.rotation.y=a;g.add(pl)})}
-  // crane
-  const yellow=M(0xf2b51f);
-  const mast=new THREE.Mesh(new THREE.BoxGeometry(1.1,24,1.1),yellow);mast.position.set(-11,12,-6);mast.castShadow=true;g.add(mast);
-  const jib=new THREE.Group();jib.position.set(-11,23.5,-6);g.add(jib);
-  const arm=new THREE.Mesh(new THREE.BoxGeometry(22,1,1),yellow);arm.position.x=7;jib.add(arm);
-  const cw=new THREE.Mesh(new THREE.BoxGeometry(3,2,2),M(0x6d6d72));cw.position.set(-3,-.8,0);jib.add(cw);
-  const cable=new THREE.Mesh(new THREE.BoxGeometry(.08,8,.08),M(0x333333));cable.position.set(14,-4,0);jib.add(cable);
-  const load=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.2,2.4),M(0xd63b22));load.position.set(14,-8.6,0);jib.add(load);
-  anim.push(t=>{jib.rotation.y=.6+Math.sin(t*.3)*.7});
-  // cones and bricks
-  const cone=M(0xff7a2a);for(let k=0;k<8;k++){const c=new THREE.Mesh(new THREE.ConeGeometry(.35,.9,10),cone);c.position.set(-13+k*3.6,.75,-11.6);g.add(c)}
-  for(let k=0;k<12;k++){const b=new THREE.Mesh(new THREE.BoxGeometry(.9,.45,.45),M(0xc0533a));b.position.set(9+(k%4)*.95,.55+Math.floor(k/4)*.46,-8);g.add(b)}
-  const s=sign('בקרוב','בית הספר של ביצי',7,3.5);s.position.set(0,2.4,-12.6);s.rotation.y=Math.PI;g.add(s);
-  [-2.5,2.5].forEach(x=>{const p1=new THREE.Mesh(new THREE.BoxGeometry(.25,1.4,.25),M(0x6b4a2f));p1.position.set(x,.7,-12.5);g.add(p1)});
-  scene.add(g);
-}
+// Betzi's School: the finished egg school (school.js), enterable by tapping it
+let eggSchool=null;
+try{eggSchool=window.__school=makeEggSchool(THREE,{scene,pos:SCHOOL,canvas,onExit:()=>{fly=null;cam.target.set(SCHOOL.x,4,SCHOOL.z);cam.theta=Math.PI;cam.phi=.98;cam.radius=58}})}catch(e){console.error('school',e)}
 // ===== Across the river: road, stadium surroundings, school surroundings =====
 {
   const Z0=RIVER_Z+RIVER_W/2;
@@ -567,29 +542,18 @@ function stand(label,color,x,z,ry){
   for(let k=0;k<5;k++){[-1,1].forEach(sd=>{const w=new THREE.Mesh(new THREE.BoxGeometry(.05,.7,.9),new THREE.MeshStandardMaterial({color:0x8fd3ff,emissive:0x2a6a9a,emissiveIntensity:.2}));w.position.set(sd*1.22,2,-2.4+k*1.2);bus.add(w)})}
   [-2.4,2.4].forEach(z=>{[-1,1].forEach(sd=>{const wh=new THREE.Mesh(new THREE.CylinderGeometry(.45,.45,.3,14),M(0x222222));wh.rotation.z=Math.PI/2;wh.position.set(sd*1.2,.45,z);bus.add(wh)})});
   const bs=sign('הסעות ביצי','',2.6,.8);bs.position.set(0,2.95,3.52);bus.add(bs);
-  // cement mixer with a turning drum
-  const mixer=new THREE.Group();mixer.position.set(S.x-10,0,S.z+8);scene.add(mixer);
-  const cab=new THREE.Mesh(new THREE.BoxGeometry(2,1.8,1.8),M(0xd63b22));cab.position.set(0,1.3,2.6);mixer.add(cab);
-  const base=new THREE.Mesh(new THREE.BoxGeometry(2,.5,5.4),M(0x444448));base.position.set(0,.6,.6);mixer.add(base);
-  const drum=new THREE.Mesh(new THREE.CylinderGeometry(1.1,.6,3.2,14),M(0xeeeeee));drum.rotation.x=Math.PI/2-.3;drum.position.set(0,2.1,-.4);mixer.add(drum);
-  anim.push(t=>{drum.rotation.y=t*1.5});
-  // sand, lumber and a flag
-  const sand=new THREE.Mesh(new THREE.ConeGeometry(2.2,1.8,16),M(0xe2c27a));sand.position.set(S.x+11,.9,S.z-6);scene.add(sand);
-  for(let k=0;k<6;k++){const l=new THREE.Mesh(new THREE.BoxGeometry(4,.3,.4),M(0xc08a52));l.position.set(S.x+6,.4+Math.floor(k/3)*.32,S.z-9+(k%3)*.45);scene.add(l)}
   const fp=new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,8,8),steel);fp.position.set(S.x-13,4,S.z-10);scene.add(fp);
   const flag=new THREE.Mesh(new THREE.PlaneGeometry(2.2,1.3,8,1),new THREE.MeshStandardMaterial({map:canvasTex(256,150,(x,W,H)=>{x.fillStyle='#fff6e2';x.fillRect(0,0,W,H);x.fillStyle='#ffb51f';x.beginPath();x.arc(W/2,H/2,40,0,7);x.fill();x.fillStyle='#fffdf6';}),side:THREE.DoubleSide}));
   flag.position.set(S.x-11.9,7.2,S.z-10);scene.add(flag);
   const fpos=flag.geometry.attributes.position,fx=[];for(let i=0;i<fpos.count;i++)fx.push(fpos.getX(i));
   anim.push(t=>{for(let i=0;i<fpos.count;i++){const u=(fx[i]+1.1)/2.2;fpos.setZ(i,Math.sin(t*4-u*4)*.25*u)}fpos.needsUpdate=true});
-  // worker chicks in hard hats
+  // chicks playing in the schoolyard
   const chickY=M(0xffd23f),beakM=M(0xff8a2a),hat=new THREE.MeshStandardMaterial({color:0xff9a1a,roughness:.4}),eyeM=M(0x1d1410);
   const chicks=[];[[S.x-3,S.z-10],[S.x+7,S.z+1],[S.x-8,S.z+3]].forEach(([x,z],k)=>{const c=new THREE.Group();c.position.set(x,0,z);c.rotation.y=Math.PI+k;
     const body=new THREE.Mesh(new THREE.SphereGeometry(.7,16,12),chickY);body.position.y=.7;c.add(body);
     const head=new THREE.Mesh(new THREE.SphereGeometry(.45,16,12),chickY);head.position.set(0,1.55,0);c.add(head);
     const beak=new THREE.Mesh(new THREE.ConeGeometry(.12,.3,8),beakM);beak.rotation.x=Math.PI/2;beak.position.set(0,1.5,.47);c.add(beak);
     [-.17,.17].forEach(ex=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.07,8,6),eyeM);e.position.set(ex,1.66,.38);c.add(e)});
-    const h=new THREE.Mesh(new THREE.SphereGeometry(.5,16,8,0,Math.PI*2,0,Math.PI/2),hat);h.position.y=1.72;c.add(h);
-    const brim=new THREE.Mesh(new THREE.CylinderGeometry(.62,.62,.06,16),hat);brim.position.y=1.74;c.add(brim);
     scene.add(c);chicks.push(c)});
   anim.push(t=>{chicks.forEach((c,k)=>{c.position.y=Math.abs(Math.sin(t*3+k))*.25})});
 }
@@ -1336,6 +1300,14 @@ function up(e){ptrs.delete(e.pointerId);pinch0=0}
 canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
 canvas.addEventListener('wheel',e=>{e.preventDefault();cam.radius=Math.min(230,Math.max(18,cam.radius*(1+e.deltaY*.001)))},{passive:false});
 
+// Tap the egg school (or the button) to go inside
+{const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();let d0=null;
+ canvas.addEventListener('pointerdown',e=>{d0={x:e.clientX,y:e.clientY,t:performance.now()}});
+ canvas.addEventListener('pointerup',e=>{if(!d0||!eggSchool||eggSchool.active||film)return;const moved=Math.hypot(e.clientX-d0.x,e.clientY-d0.y);if(moved>8||performance.now()-d0.t>450||ptrs.size>0)return;
+   const r=canvas.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(ndc,camera);if(ray.intersectObjects(eggSchool.hit,false).length){fly=null;eggSchool.enter(camera)}});
+ $('schoolBtn').onclick=e=>{e.stopPropagation();if(eggSchool&&!eggSchool.active){fly=null;eggSchool.enter(camera)}};
+ if(!eggSchool)$('schoolBtn').hidden=true;}
+
 // Walking around: on-screen arrows and keyboard arrows / WASD
 const walk={u:0,d:0,l:0,r:0},keys={};
 document.querySelectorAll('#pad button').forEach(b=>{const d=b.dataset.d;
@@ -1351,7 +1323,7 @@ let film=false;
 $('film').onclick=e=>{e.stopPropagation();film=true;document.body.classList.add('film');$('filmhint').hidden=false;sheet.hidden=true;fly={t0:performance.now(),dur:2000,from:cam.target.clone(),to:new THREE.Vector3(0,8,0),r0:cam.radius,r1:100,p0:cam.phi,p1:.9};setTimeout(()=>{$('filmhint').hidden=true},2500)};
 canvas.addEventListener('click',()=>{if(film){film=false;document.body.classList.remove('film');$('filmhint').hidden=true}});
 
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<h?60:45;camera.updateProjectionMatrix()}
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<h?60:45;camera.updateProjectionMatrix();if(eggSchool)eggSchool.resize(w,h)}
 addEventListener('resize',resize);resize();
 
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1359,15 +1331,16 @@ const clock=new THREE.Clock();
 function ease(t){const c=1.9;return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2)}
 function loop(){
   const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime,now=performance.now();
+  if(eggSchool){eggSchool.tick(t,dt);if(eggSchool.showInterior){renderer.render(eggSchool.iscene,eggSchool.icam);requestAnimationFrame(loop);return}}
   if(film&&!fly)cam.theta+=dt*.12;
   {const f=(walk.u||keys.ArrowUp||keys.KeyW?1:0)-(walk.d||keys.ArrowDown||keys.KeyS?1:0),r=(walk.r||keys.ArrowRight||keys.KeyD?1:0)-(walk.l||keys.ArrowLeft||keys.KeyA?1:0);
    if(f||r){fly=null;const sp=Math.max(12,cam.radius*.7)*dt,st=Math.sin(cam.theta),ct=Math.cos(cam.theta);
      cam.target.x+=(-st*f+ct*r)*sp;cam.target.z+=(-ct*f-st*r)*sp;
      cam.target.x=Math.max(-170,Math.min(170,cam.target.x));cam.target.z=Math.max(-120,Math.min(210,cam.target.z))}}
   if(fly){let k=Math.min(1,(now-fly.t0)/fly.dur);const s=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;cam.target.lerpVectors(fly.from,fly.to,s);cam.radius=fly.r0+(fly.r1-fly.r0)*s;cam.phi=fly.p0+(fly.p1-fly.p0)*s;if(fly.th1!=null)cam.theta=fly.th0+(fly.th1-fly.th0)*s;if(k>=1)fly=null}
-  const sp=Math.sin(cam.phi);
+  if(!eggSchool||!eggSchool.approaching){const sp=Math.sin(cam.phi);
   camera.position.set(cam.target.x+cam.radius*sp*Math.sin(cam.theta),cam.target.y+cam.radius*Math.cos(cam.phi),cam.target.z+cam.radius*sp*Math.cos(cam.theta));
-  camera.lookAt(cam.target);
+  camera.lookAt(cam.target);}
 
   if(!reduce)anim.forEach(f=>f(t));
   igorTick(t,dt);
